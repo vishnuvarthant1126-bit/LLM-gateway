@@ -1,0 +1,8 @@
+services:
+  gateway:
+    build: .
+    ports:
+      - "8000:8000"      # http://localhost:8000/dashboard
+    env_file:
+      - path: .env
+        required: false

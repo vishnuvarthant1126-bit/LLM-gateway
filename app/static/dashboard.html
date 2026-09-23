@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LLM Gateway</title>
+<style>
+  :root {
+    --paper: #edf0f2; --surface: #ffffff; --ink: #16202b; --muted: #5b6b7b; --line: #d5dce2;
+    --ok: #16897b; --warn: #b7791f; --bad: #c23b2a; --accent: #23408e;
+    --ok-bg: #dff3ef; --warn-bg: #f8ecd2; --bad-bg: #f8e0dc;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #12181f; --surface: #1a232d; --ink: #e6ebf0; --muted: #93a3b3; --line: #2b3745;
+      --ok: #3fc2b0; --warn: #e0a83a; --bad: #ef7767; --accent: #8fa8f0;
+      --ok-bg: #15332f; --warn-bg: #3a2f14; --bad-bg: #3d1f1a;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font: 15px/1.5 "Avenir Next", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  main { max-width: 1120px; margin: 0 auto; padding: 28px 20px 48px; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 24px; margin-bottom: 22px; }
+  h1 { font-size: 26px; font-weight: 650; letter-spacing: -0.01em; margin: 0; }
+  header p { margin: 0; color: var(--muted); }
+  h2 { font-size: 16px; font-weight: 650; margin: 0 0 12px; }
+  section { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 20px; margin-bottom: 16px; }
+  a { color: var(--accent); }
+
+  /* Route map: the request travels left to right, falling to the next provider when one fails */
+  .lane { display: flex; align-items: stretch; gap: 0; overflow-x: auto; padding-bottom: 4px; }
+  .node { flex: 1 1 0; min-width: 210px; border: 2px solid var(--line); border-radius: 6px; padding: 14px; background: var(--surface); }
+  .node[data-circuit="closed"]    { border-color: var(--ok); }
+  .node[data-circuit="half_open"] { border-color: var(--warn); }
+  .node[data-circuit="open"]      { border-color: var(--bad); }
+  .link { flex: 0 0 44px; display: flex; align-items: center; justify-content: center; position: relative; color: var(--muted); font-size: 12px; }
+  .link::before { content: ""; position: absolute; left: 0; right: 8px; top: 50%; border-top: 2px dashed var(--line); }
+  .link::after { content: ""; position: absolute; right: 2px; top: 50%; margin-top: -5px; border: 5px solid transparent; border-left: 8px solid var(--line); }
+  .node-name { font-weight: 650; font-size: 16px; }
+  .node-sub { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+  .pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 9px; border-radius: 999px; }
+  .pill.closed { background: var(--ok-bg); color: var(--ok); }
+  .pill.half_open { background: var(--warn-bg); color: var(--warn); }
+  .pill.open { background: var(--bad-bg); color: var(--bad); }
+  .share { height: 8px; background: var(--paper); border-radius: 4px; margin: 12px 0 4px; overflow: hidden; }
+  .share > i { display: block; height: 100%; background: var(--accent); width: 0; transition: width .4s; }
+  .node-stats { font-size: 13px; color: var(--muted); }
+  .modes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .modes button { font: inherit; font-size: 13px; padding: 3px 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 4px; cursor: pointer; }
+  .modes button[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+  .modes button:hover { border-color: var(--ink); }
+
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 820px) { .cols { grid-template-columns: 1fr; } }
+  .cols > section { margin-bottom: 0; }
+  dl.stats { display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; margin: 0; }
+  dl.stats dt { color: var(--muted); }
+  dl.stats dd { margin: 0; font-weight: 650; text-align: right; }
+  .big { font-size: 40px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+  .big small { font-size: 15px; font-weight: 500; color: var(--muted); margin-left: 6px; letter-spacing: 0; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
+
+  label { display: block; color: var(--muted); font-size: 13px; margin: 0 0 4px; }
+  input[type=text] { font: inherit; width: 100%; padding: 7px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--paper); color: var(--ink); }
+  input[type=text]:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .btn { font: inherit; font-weight: 600; padding: 7px 14px; border-radius: 4px; border: 1px solid var(--ink); background: var(--ink); color: var(--surface); cursor: pointer; }
+  .btn.ghost { background: transparent; color: var(--ink); }
+  .btn:disabled { opacity: .5; cursor: wait; }
+  .result { margin-top: 12px; padding: 10px 12px; border-radius: 4px; background: var(--paper); font-size: 14px; white-space: pre-wrap; word-break: break-word; min-height: 44px; }
+
+  ul.events { list-style: none; margin: 0; padding: 0; max-height: 280px; overflow: auto; }
+  ul.events li { display: flex; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+  ul.events li:last-child { border-bottom: 0; }
+  .dot { flex: 0 0 10px; height: 10px; border-radius: 50%; margin-top: 7px; background: var(--ok); }
+  .dot.fallback { background: var(--warn); } .dot.failed { background: var(--bad); } .dot.rate_limited { background: var(--accent); }
+  .ev-time { color: var(--muted); margin-left: auto; }
+  .empty { color: var(--muted); }
+  #status { font-size: 13px; }
+  @media (prefers-reduced-motion: reduce) { .share > i { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>LLM Gateway</h1>
+      <p>One endpoint, several providers. Requests fall back automatically when a provider fails.</p>
+    </div>
+    <p id="status" role="status">Connecting…</p>
+  </header>
+
+  <section aria-labelledby="route-h">
+    <h2 id="route-h">Route map</h2>
+    <div class="lane" id="lane"><p class="empty">Waiting for data…</p></div>
+    <p class="node-sub" style="margin:10px 0 0">Traffic tries providers left to right. Use the buttons on a mock provider to break it and watch the next one take over.</p>
+  </section>
+
+  <div class="cols">
+    <section aria-labelledby="stats-h">
+      <h2 id="stats-h">Live numbers</h2>
+      <div class="big"><span id="success-rate">–</span><small>success rate</small></div>
+      <hr>
+      <dl class="stats">
+        <dt>Requests handled</dt><dd id="total">0</dd>
+        <dt>Served by a fallback provider</dt><dd id="fallbacks">0</dd>
+        <dt>Rejected by rate limit (429)</dt><dd id="limited">0</dd>
+        <dt>Failed on every provider (503)</dt><dd id="failed">0</dd>
+        <dt>Throughput, last 10 s</dt><dd id="rps">0 req/s</dd>
+        <dt>Latency p50 / p95 / p99</dt><dd id="lat">–</dd>
+        <dt>Gateway overhead, mean / p95</dt><dd id="ovh">–</dd>
+        <dt>Total cost</dt><dd id="cost">$0</dd>
+      </dl>
+      <div class="row"><button class="btn ghost" id="reset">Reset everything</button></div>
+    </section>
+
+    <section aria-labelledby="try-h">
+      <h2 id="try-h">Try it</h2>
+      <label for="key">API key</label>
+      <input type="text" id="key" value="demo-key" autocomplete="off" spellcheck="false">
+      <label for="msg" style="margin-top:10px">Message</label>
+      <input type="text" id="msg" value="Hello from the dashboard" autocomplete="off">
+      <div class="row">
+        <button class="btn" id="send">Send request</button>
+        <button class="btn ghost" id="burst">Send 30 at once</button>
+      </div>
+      <div class="result" id="result" aria-live="polite">Send a request to see which provider answered.</div>
+    </section>
+  </div>
+
+  <section style="margin-top:16px" aria-labelledby="ev-h">
+    <h2 id="ev-h">Recent requests</h2>
+    <ul class="events" id="events"><li class="empty">Nothing yet.</li></ul>
+  </section>
+  <p class="node-sub">API docs: <a href="/docs">/docs</a> &nbsp; Raw metrics: <a href="/metrics">/metrics</a></p>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const keyHeader = () => ({ "Content-Type": "application/json", "X-API-Key": $("key").value.trim() });
+const MODES = ["healthy", "down", "slow", "flaky"];
+const CIRCUIT_LABEL = { closed: "Circuit closed", half_open: "Testing recovery", open: "Circuit open" };
+let laneSig = "";
+
+function el(tag, props = {}, ...kids) {
+  const n = document.createElement(tag);
+  Object.assign(n, props);
+  kids.forEach(k => n.append(k));
+  return n;
+}
+
+async function setMode(name, mode) {
+  const r = await fetch(`/admin/providers/${encodeURIComponent(name)}/mode`, { method: "POST", headers: keyHeader(), body: JSON.stringify({ mode }) });
+  if (!r.ok) $("result").textContent = `Could not change mode: ${r.status} (check the API key)`;
+  refresh();
+}
+
+function renderLane(m) {
+  const stats = m.providers_stats || {};
+  const served = m.succeeded || 0;
+  const sig = m.providers.map(p => [p.name, p.circuit, p.mode].join(":")).join("|");
+  if (sig !== laneSig) {                       // rebuild only when structure changes, so buttons stay clickable
+    laneSig = sig;
+    const lane = $("lane");
+    lane.replaceChildren();
+    m.providers.forEach((p, i) => {
+      if (i > 0) lane.append(el("div", { className: "link", title: "falls back to the next provider" }));
+      const node = el("div", { className: "node" });
+      node.dataset.circuit = p.circuit; node.dataset.name = p.name;
+      node.append(
+        el("div", { className: "node-name", textContent: p.name }),
+        el("div", { className: "node-sub", textContent: `${p.model}${i === 0 ? " · first choice" : ""}` }),
+        el("span", { className: `pill ${p.circuit}`, textContent: CIRCUIT_LABEL[p.circuit] }),
+        el("div", { className: "share" }, el("i")),
+        el("div", { className: "node-stats" })
+      );
+      if (p.kind === "mock") {
+        const modes = el("div", { className: "modes", role: "group", ariaLabel: `Failure mode for ${p.name}` });
+        MODES.forEach(mode => {
+          const b = el("button", { textContent: mode, type: "button" });
+          b.setAttribute("aria-pressed", String(p.mode === mode));
+          b.onclick = () => setMode(p.name, mode);
+          modes.append(b);
+        });
+        node.append(modes);
+      }
+      lane.append(node);
+    });
+  }
+  m.providers.forEach(p => {                    // update numbers in place
+    const node = document.querySelector(`.node[data-name="${p.name}"]`);
+    if (!node) return;
+    const s = stats[p.name] || { successes: 0, failures: 0, skipped_open: 0, cost_usd: 0 };
+    node.querySelector(".share > i").style.width = served ? `${(s.successes / served) * 100}%` : "0";
+    node.querySelector(".node-stats").textContent =
+      `${s.successes} answered · ${s.failures} failed · ${s.skipped_open} skipped while open`;
+  });
+}
+
+function fmtTime(t) { const d = Math.max(0, Math.round(Date.now() / 1000 - t)); return d < 2 ? "now" : `${d}s ago`; }
+
+function renderEvents(list) {
+  const ul = $("events");
+  ul.replaceChildren();
+  if (!list.length) { ul.append(el("li", { className: "empty", textContent: "Nothing yet. Send a request above." })); return; }
+  const text = {
+    ok: e => `Answered by ${e.provider} in ${e.latency_ms} ms`,
+    fallback: e => `Answered by fallback ${e.provider} in ${e.latency_ms} ms`,
+    failed: e => `All providers failed after ${e.latency_ms} ms`,
+    rate_limited: () => "Rejected: rate limit exceeded",
+  };
+  list.slice(0, 12).forEach(e => ul.append(el("li", {}, el("span", { className: `dot ${e.kind}` }),
+    el("span", { textContent: text[e.kind](e) }), el("span", { className: "ev-time", textContent: fmtTime(e.t) }))));
+}
+
+async function refresh() {
+  try {
+    const m = await (await fetch("/metrics")).json();
+    $("status").textContent = `Live · up ${Math.round(m.uptime_s)} s`;
+    $("success-rate").textContent = m.success_rate == null ? "–" : `${m.success_rate}%`;
+    $("total").textContent = m.total_requests;
+    $("fallbacks").textContent = m.fallbacks;
+    $("limited").textContent = m.rate_limited;
+    $("failed").textContent = m.failed;
+    $("rps").textContent = `${m.requests_per_sec_10s} req/s`;
+    $("lat").textContent = m.succeeded ? `${m.latency_ms.p50} / ${m.latency_ms.p95} / ${m.latency_ms.p99} ms` : "–";
+    $("ovh").textContent = m.succeeded ? `${m.gateway_overhead_ms.mean} / ${m.gateway_overhead_ms.p95} ms` : "–";
+    $("cost").textContent = `$${m.total_cost_usd.toFixed(6)}`;
+    renderLane(m);
+    renderEvents(m.recent_events);
+  } catch (e) {
+    $("status").textContent = "Cannot reach the gateway. Is it running?";
+  }
+}
+
+async function sendOne() {
+  return fetch("/chat", { method: "POST", headers: keyHeader(), body: JSON.stringify({ messages: [{ role: "user", content: $("msg").value || "hi" }] }) });
+}
+
+$("send").onclick = async () => {
+  $("send").disabled = true;
+  try {
+    const r = await sendOne(); const d = await r.json();
+    if (r.ok) {
+      const path = d.attempts.map(a => `${a.provider}: ${a.outcome}`).join("  then  ");
+      $("result").textContent = `${d.content}\n\nAnswered by ${d.provider}${d.fallback_used ? " (fallback)" : ""} in ${d.latency_ms} ms\nAttempts: ${path}`;
+    } else if (r.status === 429) {
+      $("result").textContent = `Rate limited. Retry after ${r.headers.get("Retry-After")} s.`;
+    } else if (r.status === 401) {
+      $("result").textContent = "The API key was rejected. The default key is demo-key.";
+    } else {
+      $("result").textContent = `Failed (${r.status}). ` + (d.attempts ? d.attempts.map(a => `${a.provider}: ${a.outcome}`).join(", ") : JSON.stringify(d));
+    }
+  } finally { $("send").disabled = false; refresh(); }
+};
+
+$("burst").onclick = async () => {
+  $("burst").disabled = true;
+  try {
+    const res = await Promise.all(Array.from({ length: 30 }, () => sendOne().then(r => r.status)));
+    const c = s => res.filter(x => x === s).length;
+    $("result").textContent = `30 requests sent at once with this key:\n${c(200)} answered, ${c(429)} rejected by the rate limiter, ${c(503)} failed on every provider.`;
+  } finally { $("burst").disabled = false; refresh(); }
+};
+
+$("reset").onclick = async () => {
+  await fetch("/admin/reset", { method: "POST", headers: keyHeader() });
+  laneSig = ""; $("result").textContent = "Everything reset."; refresh();
+};
+
+refresh();
+setInterval(refresh, 1000);
+</script>
+</body>
+</html>

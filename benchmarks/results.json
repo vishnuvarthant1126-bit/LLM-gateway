@@ -1,0 +1,116 @@
+[
+  {
+    "requests": 2000,
+    "success_rate_pct": 100.0,
+    "fallback_pct": 0.0,
+    "http_503": 0,
+    "http_429": 0,
+    "errors": 0,
+    "rps": 183.1,
+    "latency_ms": {
+      "p50": 198.3,
+      "p95": 699.9,
+      "p99": 1081.6
+    },
+    "gateway_overhead_ms": {
+      "mean": 0.009,
+      "p95": 0.01
+    },
+    "phase": "Healthy (all providers up)"
+  },
+  {
+    "requests": 2000,
+    "success_rate_pct": 100.0,
+    "fallback_pct": 100.0,
+    "http_503": 0,
+    "http_429": 0,
+    "errors": 0,
+    "rps": 205.7,
+    "latency_ms": {
+      "p50": 180.5,
+      "p95": 618.9,
+      "p99": 904.4
+    },
+    "gateway_overhead_ms": {
+      "mean": 0.018,
+      "p95": 0.02
+    },
+    "phase": "Primary down"
+  },
+  {
+    "requests": 2000,
+    "success_rate_pct": 100.0,
+    "fallback_pct": 100.0,
+    "http_503": 0,
+    "http_429": 0,
+    "errors": 0,
+    "rps": 236.6,
+    "latency_ms": {
+      "p50": 154.3,
+      "p95": 546.3,
+      "p99": 763.4
+    },
+    "gateway_overhead_ms": {
+      "mean": 0.018,
+      "p95": 0.018
+    },
+    "phase": "Primary + secondary down"
+  },
+  {
+    "requests": 2000,
+    "success_rate_pct": 100.0,
+    "fallback_pct": 100.0,
+    "http_503": 0,
+    "http_429": 0,
+    "errors": 0,
+    "rps": 163.1,
+    "latency_ms": {
+      "p50": 189.0,
+      "p95": 933.5,
+      "p99": 1258.5
+    },
+    "gateway_overhead_ms": {
+      "mean": 0.027,
+      "p95": 0.02
+    },
+    "phase": "Primary hangs (timeouts)"
+  },
+  {
+    "requests": 2000,
+    "success_rate_pct": 100.0,
+    "fallback_pct": 11.65,
+    "http_503": 0,
+    "http_429": 0,
+    "errors": 0,
+    "rps": 171.6,
+    "latency_ms": {
+      "p50": 226.3,
+      "p95": 708.6,
+      "p99": 1056.8
+    },
+    "gateway_overhead_ms": {
+      "mean": 0.123,
+      "p95": 0.711
+    },
+    "phase": "Primary flaky (30% errors)"
+  },
+  {
+    "requests": 2000,
+    "success_rate_pct": 0.0,
+    "fallback_pct": 0.0,
+    "http_503": 2000,
+    "http_429": 0,
+    "errors": 0,
+    "rps": 303.7,
+    "latency_ms": {
+      "p50": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "gateway_overhead_ms": {
+      "mean": null,
+      "p95": null
+    },
+    "phase": "Total outage (all down)"
+  }
+]
