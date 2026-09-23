@@ -12,6 +12,9 @@ A small gateway that puts **one `/chat` endpoint** in front of several LLM provi
 > The table below is for running the gateway on your own machine. A live, already-running version is linked above.
 | Raw metrics (JSON) | http://localhost:8000/metrics |
 | Health check | http://localhost:8000/health |
+> > The table above is for running the gateway on your own machine. The live link at the top is the already-running version.
+
+Raw metrics (JSON): http://localhost:8000/metrics · Health check: http://localhost:8000/health
 
 ## Quick start
 
