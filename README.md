@@ -1,4 +1,5 @@
 # LLM Gateway
+**Live demo:** https://llm-gateway-wae8.onrender.com/dashboard
 
 A small gateway that puts **one `/chat` endpoint** in front of several LLM providers (OpenAI, Anthropic, Gemini). It adds per-key rate limiting, retries with backoff, per-provider circuit breakers and automatic fallback routing, and it tracks latency, tokens and cost. A live dashboard shows what it is doing.
 
@@ -8,6 +9,7 @@ A small gateway that puts **one `/chat` endpoint** in front of several LLM provi
 |---|---|
 | Live dashboard | http://localhost:8000/dashboard |
 | Interactive API docs | http://localhost:8000/docs |
+> The table below is for running the gateway on your own machine. A live, already-running version is linked above.
 | Raw metrics (JSON) | http://localhost:8000/metrics |
 | Health check | http://localhost:8000/health |
 
